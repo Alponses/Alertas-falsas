@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta Defender XDR - Simulador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;900&family=Poppins:wght@900&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --primary: #ef4444; 
+            --bg: #050505;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1a0b16, #000000);
+            color: white;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .font-arcade { font-family: 'Bungee', cursive; }
+        .font-winner { font-family: 'Poppins', sans-serif; }
+
+        .slot-window {
+            height: 140px;
+            overflow: hidden;
+            position: relative;
+            background: rgba(10,0,0,0.8);
+            border-top: 6px solid var(--primary);
+            border-bottom: 6px solid var(--primary);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+        }
+
+        .names-track {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            will-change: transform;
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        .name-item {
+            height: 140px;
+            min-height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1rem, 4vw, 2.2rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            width: 100%;
+            padding: 0 2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-shadow: 4px 4px 0px rgba(0,0,0,1);
+            color: #ff3333;
+            font-family: 'Bungee', cursive;
+        }
+
+        /* EFECTO GLITCH */
+        #winnerName {
+            position: relative;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            font-size: clamp(2rem, 6vw, 80px);
+            max-width: 95vw;
+            word-break: break-word;
+            line-height: 1.1;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .is-glitching {
+            text-shadow: 0.05em 0 0 #ec2225, -0.025em -0.05em 0 #313f97, 0.025em 0.05em 0 #50c878;
+            animation: glitch-color 1s infinite;
+        }
+
+        #winnerName:before, #winnerName:after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0.8;
+            width: 100%;
+            height: 100%;
+            display: none;
+            pointer-events: none;
+        }
+
+        .is-glitching:before {
+            display: block;
+            animation: glitch-anim 400ms infinite;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+            transform: translate(-0.025em, -0.0125em);
+        }
+
+        .is-glitching:after {
+            display: block;
+            animation: glitch-anim 300ms infinite;
+            clip-path: polygon(0 65%, 100% 20%, 100% 100%, 0 70%);
+            transform: translate(0.0125em, 0.025em);
+        }
+
+        @keyframes glitch-anim {
+            0% { color: rgba(236, 34, 37, 0.2); text-shadow: 0.05em 0 0 #ec2225, -0.025em -0.05em 0 #00ffff, 0.025em 0.05em 0 #ff00ff; }
+            20% { text-shadow: 0.05em 0 0 #ec2225, -0.025em -0.05em 0 #00ffff, 0.025em 0.05em 0 #ff00ff; }
+            21% { color: #ff0000; text-shadow: -0.05em -0.025em 0 #ec2225, 0.025em -0.025em 0 #00ffff, -0.05em -0.05em 0 #ff00ff; }
+            49% { text-shadow: -0.05em -0.025em 0 #ec2225, 0.025em -0.025em 0 #00ffff, -0.05em -0.05em 0 #ff00ff; }
+            50% { text-shadow: 0.025em 0.05em 0 #ec2225, -0.025em 0.05em 0 #00ffff, 0 -0.05em 0 #ff00ff; }
+            99% { color: #ffffff; text-shadow: 0.025em 0.05em 0 #ec2225, -0.025em 0.05em 0 #00ffff, 0 -0.05em 0 #ff00ff; }
+            100% { text-shadow: -0.025em 0 0 #ec2225, -0.025em -0.025em 0 #00ffff, -0.025em -0.05em 0 #ff00ff; }
+        }
+
+        @keyframes glitch-color {
+            0%, 100% { color: #ffffff; }
+            50% { color: #ff3333; }
+        }
+
+        .shake-screen { animation: shake-anim 0.05s infinite; }
+        @keyframes shake-anim {
+            0% { transform: translate(5px, 5px) rotate(0deg); }
+            50% { transform: translate(-5px, -5px) rotate(-1deg); }
+            100% { transform: translate(5px, -5px) rotate(1deg); }
+        }
+
+        /* EFECTO DE DESTELLO CORREGIDO */
+        .flash-impact {
+            position: fixed;
+            inset: 0;
+            background: white; /* Blanco limpio */
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10000;
+        }
+
+        #raffleOverlay { transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); }
+
+        .winner-pop { animation: pop-in 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes pop-in {
+            0% { transform: scale(0.2) translateY(100px); opacity: 0; }
+            80% { transform: scale(1.05); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .btn-main {
+            transition: all 0.1s ease;
+            box-shadow: 0 8px 0px #991b1b;
+        }
+        .btn-main:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0px #991b1b;
+        }
+        
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 9999;
+            position: absolute;
+            pointer-events: none;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255,0,0,0.15) 50%, rgba(0,0,0,0) 100%);
+            animation: scanline 6s linear infinite;
+        }
+        @keyframes scanline {
+            0% { top: -100px; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen">
+
+    <div class="scanline"></div>
+    <div id="flash" class="flash-impact"></div>
+
+    <!-- LOGO -->
+    <img src="https://redporlaciberseguridad.org/wp-content/uploads/2025/09/Logo-escudo-amarillo-scaled-90x96.png" class="absolute top-6 left-6 w-20 md:w-24 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20" alt="Red por la Ciberseguridad">
+
+    <!-- PANEL INICIAL -->
+    <div id="setupUI" class="fixed inset-0 flex flex-col items-center justify-center z-10 bg-black/80 backdrop-blur-sm p-4">
+        <h1 class="font-arcade text-5xl md:text-7xl text-red-500 mb-4 tracking-widest text-center" style="text-shadow: 0 0 20px rgba(255,0,0,0.8);">DEFENDER XDR</h1>
+        <h2 class="text-xl md:text-2xl text-red-300 font-mono mb-12 tracking-[0.4em] uppercase text-center">Threat Simulator Engine</h2>
+        
+        <button id="spinBtn" class="btn-main font-arcade bg-red-600 hover:bg-red-500 text-white py-6 px-12 md:px-16 rounded-2xl text-2xl md:text-4xl uppercase tracking-widest mt-4">
+            INICIAR RULETA
+        </button>
+    </div>
+
+    <!-- OVERLAY DE LA RULETA -->
+    <div id="raffleOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center translate-y-full opacity-0 pointer-events-none bg-black/95 backdrop-blur-xl">
+        
+        <div id="machineWrapper" class="w-full max-w-6xl px-4 transition-transform duration-200 mt-4 md:mt-0">
+            <div class="bg-slate-950 border-4 border-red-600 rounded-3xl p-6 md:p-12 shadow-[0_0_80px_rgba(255,0,0,0.3)] relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-red-600/10 to-transparent pointer-events-none"></div>
+                
+                <div class="slot-window rounded-xl">
+                    <div id="track" class="names-track">
+                        <!-- Nombres se inyectan aquí -->
+                    </div>
+                </div>
+
+                <!-- Punteros -->
+                <div class="absolute left-1 md:left-6 top-1/2 -translate-y-1/2">
+                    <div class="w-0 h-0 border-t-[20px] md:border-t-[40px] border-t-transparent border-b-[20px] md:border-b-[40px] border-b-transparent border-l-[30px] md:border-l-[50px] border-l-red-500 drop-shadow-[0_0_15px_rgba(255,0,0,1)]"></div>
+                </div>
+                <div class="absolute right-1 md:right-6 top-1/2 -translate-y-1/2">
+                    <div class="w-0 h-0 border-t-[20px] md:border-t-[40px] border-t-transparent border-b-[20px] md:border-b-[40px] border-b-transparent border-r-[30px] md:border-r-[50px] border-r-red-500 drop-shadow-[0_0_15px_rgba(255,0,0,1)]"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANUNCIO DEL GANADOR -->
+        <div id="resultArea" class="mt-8 md:mt-12 text-center opacity-0 flex flex-col items-center w-full px-4 max-w-5xl">
+            <h2 class="font-mono text-sm md:text-xl text-red-500 tracking-[0.5em] mb-2 font-bold uppercase animate-pulse">🎯 Payload Seleccionado 🎯</h2>
+            <h1 id="winnerName" class="font-winner mb-6" data-text="---">---</h1>
+            
+            <!-- TARJETA DE RESUMEN Y DESCARGA (DISEÑO CORREGIDO) -->
+            <div id="scriptDetails" class="transition-opacity duration-700 opacity-0 bg-gray-900 p-6 md:p-8 rounded-2xl border border-gray-700 w-full shadow-2xl relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-black/80 to-transparent z-0"></div>
+                <div class="relative z-10">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-700 pb-4">
+                        <span class="text-green-400 font-mono text-sm md:text-lg bg-black px-4 py-2 rounded border border-gray-800" id="scriptFilename">archivo.ps1</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 uppercase tracking-widest">Gravedad:</span>
+                            <span class="px-5 py-2 rounded text-sm md:text-base font-black uppercase tracking-widest text-black" id="scriptSeverity" style="background-color: #ef4444;">ALTA</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-gray-200 text-base md:text-2xl mb-8 leading-relaxed font-mono text-left border-l-4 border-red-500 pl-6 h-24 md:h-20" id="scriptDescription">
+                        <!-- Descripción -->
+                    </p>
+                    
+                    <button id="downloadBtn" class="w-full font-arcade text-lg md:text-3xl py-6 rounded-xl text-black bg-red-500 hover:bg-red-400 shadow-[0_0_30px_rgba(255,0,0,0.4)] transition-all hover:scale-[1.02] active:scale-95 border-b-4 border-red-800 cursor-pointer">
+                        ↓↓ DESCARGAR SCRIPT (.PS1) ↓↓
+                    </button>
+                </div>
+            </div>
+
+            <button id="closeBtn" class="mt-8 font-mono border-b border-gray-500 text-gray-500 hover:text-white pb-1 transition-colors text-xs md:text-sm uppercase tracking-widest cursor-pointer">
+                [ VOLVER A GIRAR LA RULETA ]
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+                                const scriptsData = [
+            {
+                id: "KILL CHAIN COMPLETA",
+                filename: "00_Escenario_MultiVector_XDR.ps1",
+                description: "> SIMULACIÓN MASIVA. Ejecuta una cadena completa: Reconocimiento, Enmascaramiento, conexión C2 bloqueada, simulación Fileless (EDR) y caída de EICAR. Creará un INCIDENTE GIGANTE en tu tenant.",
+                severity: "CRITICA MASIVA",
+                color: "#ff00ff",
+                content: `Write-Host "=========================================="\nWrite-Host " SIMULACION KILL CHAIN MULTI-VECTOR (XDR)"\nWrite-Host "=========================================="\n$ErrorActionPreference = 'SilentlyContinue'\n\nWrite-Host "[*] Fase 1: Reconocimiento (Telemetria...)"\nwhoami /priv | Out-Null\nnet user administrator | Out-Null\nipconfig /all | Out-Null\n\nWrite-Host "[*] Fase 2: Enmascaramiento (Alerta Media...)"\nCopy-Item "$env:windir\\System32\\cmd.exe" -Destination "$env:TEMP\\winlogon_sim.exe" -Force\nStart-Process -FilePath "$env:TEMP\\winlogon_sim.exe" -ArgumentList "/c timeout 2"\n\nWrite-Host "[*] Fase 3: Conexion C2 (Alerta Media...)"\ntry { Invoke-WebRequest -Uri "https://smartscreentestratings2.net" -UseBasicParsing -TimeoutSec 3 | Out-Null } catch {}\n\nWrite-Host "[*] Fase 4: Prueba EDR Fileless (Alerta Alta...)"\ncmd.exe /c "powershell.exe -WindowStyle Hidden -Command \"(New-Object System.Net.WebClient).DownloadFile('http://127.0.0.1/1.exe', 'C:\\test-MDATP-test\\invoice.exe'); Start-Process 'C:\\test-MDATP-test\\invoice.exe'\""\n\nWrite-Host "[*] Fase 5: Malware Drop (Alerta Critica...)"\n$part1 = 'X5O!P%@AP[4\\P'\n$part2 = 'ZX54(P^)7CC)7}$EI'\n$part3 = 'CAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'\nSet-Content -Path "$([Environment]::GetFolderPath('Desktop'))\\carga_detectada.txt" -Value ($part1 + $part2 + $part3)\n\nWrite-Host "=========================================="\nWrite-Host " SIMULACION COMPLETADA."\nWrite-Host " Revisa el portal Defender XDR en 10 minutos."\nWrite-Host "=========================================="`
+            },
+            {
+                id: "VALIDACION EDR",
+                filename: "01_EDR_Validation.ps1",
+                description: "> Prueba oficial de Microsoft. Ejecuta PowerShell simulando un payload Fileless. Genera alerta EDR garantizada.",
+                severity: "ALTA",
+                color: "#f97316",
+                content: `Write-Host "Iniciando Simulacion 1: Prueba de Sensor EDR..."\ncmd.exe /c "powershell.exe -NoExit -ExecutionPolicy Bypass -WindowStyle Hidden $ErrorActionPreference = 'silentlycontinue';(New-Object System.Net.WebClient).DownloadFile('http://127.0.0.1/1.exe', 'C:\\test-MDATP-test\\invoice.exe');Start-Process 'C:\\test-MDATP-test\\invoice.exe'"`
+            },
+            {
+                id: "BLOQUEO AMSI",
+                filename: "02_AMSI_Test.ps1",
+                description: "> Motor AMSI. Lee la firma oficial de prueba en memoria para provocar un bloqueo preventivo inmediato del script.",
+                severity: "ALTA",
+                color: "#ef4444",
+                content: `Write-Host "Iniciando Simulacion 2: AMSI Test..."\n$a='AMSI Test S'+'ample: 7e72c3ce-861b-4339-8740-0ac1484c1386'\nInvoke-Expression $a\nWrite-Host "Si ves esto, AMSI fallo en bloquearlo."`
+            },
+            {
+                id: "NETWORK BLOCK",
+                filename: "03_Network_Protection.ps1",
+                description: "> Simula conexión a C2 o sitio Phishing usando el dominio de prueba de SmartScreen. Defender bloqueará la red.",
+                severity: "MEDIA",
+                color: "#eab308",
+                content: `Write-Host "Iniciando Simulacion 3: Network Protection..."\nInvoke-WebRequest -Uri "https://smartscreentestratings2.net" -UseBasicParsing\nWrite-Host "Simulacion terminada."`
+            },
+            {
+                id: "BLOQUEO DE PUA",
+                filename: "04_PUA_Test.ps1",
+                description: "> Cloud Protection. Intenta descargar una Aplicación Potencialmente No Deseada (PUA). Defender pondrá el archivo en cuarentena.",
+                severity: "MEDIA",
+                color: "#eab308",
+                content: `Write-Host "Iniciando Simulacion 4: PUA Test..."\n$puaUrl = "https://www.amtso.org/wp-content/uploads/2018/07/amtso.exe"\nInvoke-WebRequest -Uri $puaUrl -OutFile "$env:TEMP\\pua_test.exe"\nWrite-Host "Revisa si el archivo pua_test.exe existe en TEMP."`
+            },
+            {
+                id: "ANTIVIRUS EICAR",
+                filename: "05_EICAR_Test.ps1",
+                description: "> Prueba definitiva de Protección en Tiempo Real. Suelta la firma EICAR en disco. Garantiza un Incidente Crítico.",
+                severity: "CRITICA",
+                color: "#7f1d1d",
+                content: `Write-Host "Iniciando Simulacion 5: EICAR Test..."\n$p1='X5O!P%@AP[4\\P'; $p2='ZX54(P^)7CC)7}$EI'; $p3='CAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'\nSet-Content -Path "$([Environment]::GetFolderPath('Desktop'))\\factura_test.txt" -Value ($p1+$p2+$p3)\nWrite-Host "Revisa las notificaciones de Windows Security."`
+            },
+            {
+                id: "ENMASCARAMIENTO",
+                filename: "06_Behavior_Masquerading.ps1",
+                description: "> Behavior Monitoring. Copia una herramienta del sistema (cmd.exe) y la oculta en TEMP, un comportamiento muy anómalo.",
+                severity: "MEDIA / ALTA",
+                color: "#f97316",
+                content: `Write-Host "Iniciando Simulacion 6: Masquerading..."\nCopy-Item "$env:windir\\System32\\cmd.exe" -Destination "$env:TEMP\\svchost.exe" -Force\nStart-Process -FilePath "$env:TEMP\\svchost.exe" -ArgumentList "/c echo Proceso camuflado ejecutandose... && timeout 5"\nWrite-Host "Simulacion enviada a telemetria."`
+            }
+        ];
+
+        // LOGICA UI Y RULETA
+        const spinBtn = document.getElementById('spinBtn');
+        const track = document.getElementById('track');
+        const overlay = document.getElementById('raffleOverlay');
+        const machine = document.getElementById('machineWrapper');
+        const flash = document.getElementById('flash');
+        const resultArea = document.getElementById('resultArea');
+        const winnerNameText = document.getElementById('winnerName');
+        const closeBtn = document.getElementById('closeBtn');
+        const scriptDetails = document.getElementById('scriptDetails');
+        
+        const uiFilename = document.getElementById('scriptFilename');
+        const uiSeverity = document.getElementById('scriptSeverity');
+        const uiDescription = document.getElementById('scriptDescription');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let isSpinning = false;
+        let selectedScriptData = null;
+        const ITEM_HEIGHT = 140;
+
+        function triggerFlash() {
+            flash.style.opacity = '0.9';
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.6s ease-out';
+                flash.style.opacity = '0';
+            }, 50);
+        }
+
+        function runRaffle() {
+            if (isSpinning) return;
+            isSpinning = true;
+            scriptDetails.style.opacity = '0';
+            flash.style.transition = 'none';
+
+            overlay.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
+            resultArea.classList.remove('winner-pop');
+            resultArea.style.opacity = '0';
+            winnerNameText.classList.remove('is-glitching');
+            uiDescription.innerText = ""; 
+
+            const names = scriptsData.map(s => s.id);
+            const rounds = 6; 
+            const winnerIndex = Math.floor(Math.random() * scriptsData.length);
+            selectedScriptData = scriptsData[winnerIndex];
+
+            // Construir la lista para el carril
+            const extendedNames = [];
+            for(let i = 0; i < rounds + 2; i++) extendedNames.push(...names);
+            
+            // Inyectar HTML y reiniciar posición SIN transición
+            track.innerHTML = extendedNames.map(name => `<div class="name-item">${name}</div>`).join('');
+            track.style.transition = 'none';
+            track.style.transform = `translateY(0px)`;
+
+            // Forzar reflow para que el navegador procese el translateY(0px) antes de animar
+            void track.offsetHeight;
+
+            // Calcular destino
+            const totalItems = (rounds * names.length) + winnerIndex;
+            const targetY = -(totalItems * ITEM_HEIGHT);
+
+            // Iniciar animación en el siguiente frame
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    track.style.transition = `transform 5s cubic-bezier(0.1, 0, 0.05, 1)`;
+                    track.style.transform = `translateY(${targetY}px)`;
+                });
+            });
+
+            // Tiembla justo antes de parar
+            setTimeout(() => machine.classList.add('shake-screen'), 3800);
+
+            // Resultado
+            setTimeout(() => {
+                machine.classList.remove('shake-screen');
+                triggerFlash();
+                
+                winnerNameText.innerText = selectedScriptData.id;
+                winnerNameText.setAttribute('data-text', selectedScriptData.id);
+                winnerNameText.style.color = selectedScriptData.color;
+                winnerNameText.classList.add('is-glitching');
+
+                uiFilename.innerText = selectedScriptData.filename;
+                uiSeverity.innerText = selectedScriptData.severity;
+                uiSeverity.style.backgroundColor = selectedScriptData.color;
+                
+                machine.style.transform = 'scale(1.05)';
+                setTimeout(() => machine.style.transform = 'scale(1)', 150);
+
+                confetti({
+                    particleCount: 150,
+                    spread: 120,
+                    origin: { y: 0.6 },
+                    colors: ['#ff0000', '#ffffff', selectedScriptData.color],
+                    disableForReducedMotion: true
+                });
+
+                resultArea.classList.add('winner-pop');
+                resultArea.style.opacity = '1';
+                
+                setTimeout(() => {
+                    scriptDetails.style.opacity = '1';
+                    
+                    // Efecto máquina de escribir
+                    let i = 0;
+                    const txt = selectedScriptData.description;
+                    function typeWriter() {
+                        if (i < txt.length) {
+                            uiDescription.innerHTML += txt.charAt(i);
+                            i++;
+                            setTimeout(typeWriter, 15);
+                        } else {
+                            downloadBtn.style.backgroundColor = selectedScriptData.color;
+                            downloadBtn.style.boxShadow = `0 0 30px ${selectedScriptData.color}80`;
+                            downloadBtn.style.borderColor = "#000";
+                            isSpinning = false;
+                        }
+                    }
+                    typeWriter();
+                }, 800);
+                
+            }, 5000); // 5 segundos de animación total
+        }
+
+        downloadBtn.onclick = () => {
+            if(!selectedScriptData) return;
+            const blob = new Blob([selectedScriptData.content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = selectedScriptData.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const originalText = downloadBtn.innerText;
+            downloadBtn.innerText = "✓ DESCARGADO ✓";
+            setTimeout(() => downloadBtn.innerText = originalText, 2500);
+        };
+
+        closeBtn.onclick = () => {
+            overlay.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
+            winnerNameText.classList.remove('is-glitching');
+        };
+
+        spinBtn.addEventListener('click', runRaffle);
+    </script>
+</body>
+</html>
+
+
+
