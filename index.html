@@ -159,6 +159,63 @@
             box-shadow: 0 2px 0px #991b1b;
         }
         
+        .safety-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20000;
+            background: linear-gradient(90deg, #7f1d1d, #b91c1c, #7f1d1d);
+            border-bottom: 1px solid rgba(254, 202, 202, 0.35);
+            color: #fff;
+            text-align: center;
+            padding: 0.55rem 1rem;
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.72rem, 2vw, 0.9rem);
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            box-shadow: 0 6px 24px rgba(127, 29, 29, 0.45);
+        }
+
+        .safety-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 30000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.94);
+            backdrop-filter: blur(12px);
+        }
+
+        .safety-card {
+            width: min(760px, 96vw);
+            max-height: 92vh;
+            overflow-y: auto;
+            border: 2px solid #ef4444;
+            border-radius: 1.5rem;
+            background: linear-gradient(145deg, #111827, #030712);
+            box-shadow: 0 0 70px rgba(239, 68, 68, 0.35);
+            padding: clamp(1.25rem, 4vw, 2.25rem);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .safety-check {
+            accent-color: #ef4444;
+            width: 1.2rem;
+            height: 1.2rem;
+            flex: 0 0 auto;
+            margin-top: 0.15rem;
+        }
+
+        .safety-enter:disabled {
+            cursor: not-allowed;
+            opacity: 0.35;
+            filter: grayscale(1);
+        }
+
         .scanline {
             width: 100%;
             height: 100px;
@@ -176,6 +233,59 @@
 </head>
 <body class="flex items-center justify-center h-screen">
 
+    <!-- AVISO DE SEGURIDAD PERSISTENTE -->
+    <div class="safety-banner">
+        ⚠ Entorno de simulación defensiva — NO ejecutar en equipos principales, producción ni dispositivos con datos sensibles
+    </div>
+
+    <!-- BLOQUEO INICIAL: requiere confirmación antes de usar el simulador -->
+    <div id="safetyGate" class="safety-modal" role="dialog" aria-modal="true" aria-labelledby="safetyTitle">
+        <div class="safety-card">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-4xl" aria-hidden="true">⚠️</span>
+                <div>
+                    <p class="text-red-400 font-black uppercase tracking-[0.2em] text-xs md:text-sm">Advertencia de laboratorio</p>
+                    <h1 id="safetyTitle" class="text-2xl md:text-4xl font-black text-white mt-1">No uses este simulador en tu dispositivo principal</h1>
+                </div>
+            </div>
+
+            <p class="text-gray-200 leading-relaxed mb-5">
+                Este proyecto genera scripts PowerShell diseñados para <strong>provocar detecciones reales</strong> en Microsoft Defender XDR,
+                incluyendo EDR, AMSI, Network Protection, PUA, EICAR y comportamiento anómalo.
+                Las pruebas pueden ser bloqueadas, puestas en cuarentena, registradas como incidentes o alterar temporalmente el entorno de prueba.
+            </p>
+
+            <div class="bg-red-950/40 border border-red-700 rounded-xl p-4 mb-5">
+                <p class="text-red-200 font-bold mb-2">Usa únicamente:</p>
+                <ul class="text-sm md:text-base text-gray-200 space-y-2 list-disc pl-5">
+                    <li>Una VM, sandbox o equipo dedicado exclusivamente a laboratorio.</li>
+                    <li>Un dispositivo sin archivos personales, credenciales ni información corporativa sensible.</li>
+                    <li>Preferentemente una VM con snapshot para poder restaurarla después de las pruebas.</li>
+                    <li>Un tenant y endpoint de prueba donde estés autorizado a generar alertas de Defender XDR.</li>
+                </ul>
+            </div>
+
+            <div class="bg-yellow-950/30 border border-yellow-700/70 rounded-xl p-4 mb-6">
+                <p class="text-yellow-200 font-bold">No lo ejecutes en:</p>
+                <p class="text-sm md:text-base text-yellow-100/90 mt-1">
+                    Tu PC personal principal, computadora de trabajo, servidores de producción, endpoints de usuarios reales o equipos con información importante.
+                </p>
+            </div>
+
+            <label class="flex items-start gap-3 bg-black/50 border border-gray-700 rounded-xl p-4 cursor-pointer">
+                <input id="safetyAccept" class="safety-check" type="checkbox">
+                <span class="text-sm md:text-base text-gray-200">
+                    Entiendo que es un simulador defensivo para laboratorio y confirmo que lo usaré únicamente en un entorno aislado y autorizado.
+                </span>
+            </label>
+
+            <button id="safetyEnter" disabled class="safety-enter mt-5 w-full bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl py-4 transition-all">
+                Entiendo — entrar al simulador
+            </button>
+            <p class="text-center text-xs text-gray-500 mt-3">Si estás en tu equipo principal, cierra esta página y abre el laboratorio desde una VM o equipo de pruebas.</p>
+        </div>
+    </div>
+
     <div class="scanline"></div>
     <div id="flash" class="flash-impact"></div>
 
@@ -185,7 +295,15 @@
     <!-- PANEL INICIAL -->
     <div id="setupUI" class="fixed inset-0 flex flex-col items-center justify-center z-10 bg-black/80 backdrop-blur-sm p-4">
         <h1 class="font-arcade text-5xl md:text-7xl text-red-500 mb-4 tracking-widest text-center" style="text-shadow: 0 0 20px rgba(255,0,0,0.8);">DEFENDER XDR</h1>
-        <h2 class="text-xl md:text-2xl text-red-300 font-mono mb-12 tracking-[0.4em] uppercase text-center">Threat Simulator Engine</h2>
+        <h2 class="text-xl md:text-2xl text-red-300 font-mono mb-6 tracking-[0.4em] uppercase text-center">Threat Simulator Engine</h2>
+
+        <div class="w-full max-w-3xl mb-7 bg-red-950/40 border border-red-700 rounded-2xl p-4 md:p-5 text-left shadow-[0_0_24px_rgba(239,68,68,0.18)]">
+            <p class="text-red-300 font-black uppercase tracking-wider mb-2">⚠ Uso exclusivo de laboratorio</p>
+            <p class="text-sm md:text-base text-gray-200 leading-relaxed">
+                Ejecuta los scripts solo en una <strong>VM/sandbox o equipo de pruebas dedicado</strong>.
+                No uses tu computadora principal, un equipo corporativo de usuario, servidores de producción ni dispositivos con información sensible.
+            </p>
+        </div>
         
         <button id="spinBtn" class="btn-main font-arcade bg-red-600 hover:bg-red-500 text-white py-6 px-12 md:px-16 rounded-2xl text-2xl md:text-4xl uppercase tracking-widest mt-4">
             INICIAR RULETA
@@ -236,8 +354,14 @@
                         <!-- Descripción -->
                     </p>
                     
+                    <div class="mb-4 rounded-xl border border-yellow-700 bg-yellow-950/30 p-4 text-left">
+                        <p class="text-yellow-200 font-black uppercase text-sm tracking-wider">⚠ Antes de descargar</p>
+                        <p class="text-yellow-100/90 text-sm mt-1">
+                            Descarga y ejecuta este archivo únicamente dentro de tu laboratorio aislado. El script está hecho para disparar controles y telemetría de seguridad.
+                        </p>
+                    </div>
                     <button id="downloadBtn" class="w-full font-arcade text-lg md:text-3xl py-6 rounded-xl text-black bg-red-500 hover:bg-red-400 shadow-[0_0_30px_rgba(255,0,0,0.4)] transition-all hover:scale-[1.02] active:scale-95 border-b-4 border-red-800 cursor-pointer">
-                        ↓↓ DESCARGAR SCRIPT (.PS1) ↓↓
+                        ↓↓ DESCARGAR SCRIPT DE LABORATORIO (.PS1) ↓↓
                     </button>
                 </div>
             </div>
@@ -310,6 +434,9 @@
         ];
 
         // LOGICA UI Y RULETA
+        const safetyGate = document.getElementById('safetyGate');
+        const safetyAccept = document.getElementById('safetyAccept');
+        const safetyEnter = document.getElementById('safetyEnter');
         const spinBtn = document.getElementById('spinBtn');
         const track = document.getElementById('track');
         const overlay = document.getElementById('raffleOverlay');
@@ -326,6 +453,15 @@
         const downloadBtn = document.getElementById('downloadBtn');
 
         let isSpinning = false;
+
+        safetyAccept.addEventListener('change', () => {
+            safetyEnter.disabled = !safetyAccept.checked;
+        });
+
+        safetyEnter.addEventListener('click', () => {
+            if (!safetyAccept.checked) return;
+            safetyGate.style.display = 'none';
+        });
         let selectedScriptData = null;
         const ITEM_HEIGHT = 140;
 
@@ -435,6 +571,18 @@
 
         downloadBtn.onclick = () => {
             if(!selectedScriptData) return;
+
+            const confirmed = window.confirm(
+                "⚠️ CONFIRMACIÓN DE SEGURIDAD\n\n" +
+                "Vas a descargar: " + selectedScriptData.filename + "\n" +
+                "Severidad de simulación: " + selectedScriptData.severity + "\n\n" +
+                "Este script está diseñado para generar detecciones y alertas reales en Defender XDR.\n\n" +
+                "NO lo ejecutes en tu dispositivo principal, producción ni equipos con datos sensibles.\n" +
+                "Continúa solo si estás en una VM/sandbox o equipo de laboratorio autorizado.\n\n" +
+                "¿Confirmas que estás usando un entorno de pruebas?"
+            );
+            if (!confirmed) return;
+
             const blob = new Blob([selectedScriptData.content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
